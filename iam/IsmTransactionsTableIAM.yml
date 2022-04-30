@@ -1,0 +1,8 @@
+IsmTransactionsTableIAM:
+  Effect: Allow
+  Action:
+    - dynamodb:PutItem
+    - dynamodb:Query
+  Resource:
+    - ${self:custom.IsmTransactionsTable.arn}
+    - !Join ['', ['${self:custom.IsmTransactionsTable.arn}', /index/timestampLSI]]

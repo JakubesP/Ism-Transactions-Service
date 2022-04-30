@@ -1,0 +1,26 @@
+IsmTransactionsTable:
+  Type: AWS::DynamoDB::Table
+  Properties:
+    TableName: IsmTransactionsTable-${self:provider.stage}
+    BillingMode: PAY_PER_REQUEST
+    AttributeDefinitions:
+      - AttributeName: Id
+        AttributeType: S
+      - AttributeName: Version
+        AttributeType: N
+      - AttributeName: Timestamp
+        AttributeType: N
+    KeySchema:
+      - AttributeName: Id
+        KeyType: HASH
+      - AttributeName: Version
+        KeyType: RANGE
+    LocalSecondaryIndexes:
+      - IndexName: timestampLSI
+        KeySchema:
+          - AttributeName: Id
+            KeyType: HASH
+          - AttributeName: Timestamp
+            KeyType: RANGE
+        Projection:
+          ProjectionType: ALL

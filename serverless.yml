@@ -1,0 +1,99 @@
+service: ism-transactions-service
+
+plugins:
+  - serverless-plugin-typescript
+provider:
+  name: aws
+  runtime: nodejs14.x
+  region: eu-west-1
+  stage: ${opt:stage, 'dev'}
+  iam:
+    role:
+      statements:
+        - ${file(iam/IsmTransactionsTableIAM.yml):IsmTransactionsTableIAM}
+
+  environment:
+    CLIENT_EVENTS_SNAPSHOT_FREQUENCY: 10
+    ISM_TRANSACTIONS_TABLE: ${self:custom.IsmTransactionsTable.name}
+    LOG_LEVEL: info
+  apiKeys:
+    - IsmTransactionsServiceApiKey
+  usagePlan:
+    quota:
+      limit: 1000
+      period: MONTH
+    throttle:
+      rateLimit: 5
+      burstLimit: 20
+
+resources:
+  Resources:
+    IsmTransactionsTable: ${file(resources/IsmTransactionsTable.yml):IsmTransactionsTable}
+
+functions:
+  initiate-client:
+    handler: src/functions/initiate-client.handler
+    layers:
+      - ${cf:ism-layers-${self:provider.stage}.IsmCommonLayerExport}
+    events:
+      - sns: ${self:custom.IsmCreateClientTopic.name}
+
+  deactivate-client:
+    handler: src/functions/deactivate-client.handler
+    layers:
+      - ${cf:ism-layers-${self:provider.stage}.IsmCommonLayerExport}
+    events:
+      - sns: ${self:custom.IsmDeactivateClientTopic.name}
+
+  pay-client-contribution:
+    handler: src/functions/pay-client-contribution.handler
+    layers:
+      - ${cf:ism-layers-${self:provider.stage}.IsmCommonLayerExport}
+    events:
+      - http:
+          path: client/contribution/{id}
+          method: post
+          cors: true
+          private: true
+
+  pay-client-compensation:
+    handler: src/functions/pay-client-compensation.handler
+    layers:
+      - ${cf:ism-layers-${self:provider.stage}.IsmCommonLayerExport}
+    events:
+      - http:
+          path: client/compensation/{id}
+          method: post
+          cors: true
+          private: true
+
+  get-client-state:
+    handler: src/functions/get-client-state.handler
+    layers:
+      - ${cf:ism-layers-${self:provider.stage}.IsmCommonLayerExport}
+    events:
+      - http:
+          path: client/{id}
+          method: get
+          cors: true
+          private: true
+
+  get-client-transactions:
+    handler: src/functions/get-client-transactions.handler
+    layers:
+      - ${cf:ism-layers-${self:provider.stage}.IsmCommonLayerExport}
+    events:
+      - http:
+          path: client/{id}/transactions
+          method: get
+          cors: true
+          private: true
+
+custom:
+  IsmTransactionsTable:
+    name: !Ref IsmTransactionsTable
+    arn: !GetAtt IsmTransactionsTable.Arn
+  IsmCreateClientTopic:
+    name: ${cf:ism-client-service-${self:provider.stage}.IsmCreateClientTopicName}
+  IsmDeactivateClientTopic:
+    name: ${cf:ism-client-service-${self:provider.stage}.IsmDeactivateClientTopicName}
